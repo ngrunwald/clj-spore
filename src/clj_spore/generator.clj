@@ -1,5 +1,6 @@
 (ns clj-spore.generator
   (:use [clojure.contrib.str-utils :only [str-join]])
+  (:require [clojure.string :as str])
   (:import (java.net URL)))
 
 (def *api*)
@@ -15,9 +16,12 @@
   [response callbacks]
   response)
 
-(defn- finalize-request
-  [env callbacks]
+(defn finalize-request
+  [env]
   env)
+
+(defn- send-request
+  [env callbacks])
 
 (defn- wrap-request
   [init-env middlewares]
@@ -29,8 +33,10 @@
       (let [res (middleware env)]
 	(if-let [response (:response res)]
 	  (wrap-response response callbacks)
-	  (recur (:env res) (rest mw) (if-let [cb (:cb res)] (conj callbacks cb) callbacks ))))
-      (finalize-request env callbacks))))
+	  (recur (:env res)
+		 (rest mw)
+		 (if-let [cb (:cb res)] (conj callbacks cb) callbacks))))
+      (send-request (finalize-request env) callbacks))))
 
 (defn generate-spore-method
   ([method_name spec]
@@ -64,6 +70,6 @@
 		  :spore.params (dissoc user-params :payload)
 		  :spore.scheme (.getProtocol base_uri)}]
 	 (if-not (empty? missing)
-	   (Response. 599 {:error (str "missing params calling " method_name ": " (str-join ", " missing))})
+	   (Response. 599 {:error (str "missing params calling " method_name ": " (str/join ", " missing))})
 	   (wrap-request env *middlewares*)
 	 )))))
