@@ -1,14 +1,36 @@
 (ns clj-spore.generator
-  (:use [clojure.contrib.str-utils :only [str-join]]))
+  (:use [clojure.contrib.str-utils :only [str-join]])
+  (:import (java.net URL)))
 
 (def *api*)
 
-(defrecord Response [code env])
+(def *middlewares* [])
 
 (defn- check-missing-params
   [required params]
   (let [str-params (map #(name %) (keys params) )]
      (filter #(not (.contains str-params %)) required)))
+
+(defn- wrap-response
+  [response callbacks]
+  response)
+
+(defn- finalize-request
+  [env callbacks]
+  env)
+
+(defn- wrap-request
+  [init-env middlewares]
+  (loop [env init-env
+	 mw middlewares
+	 callbacks []]
+    (if-let
+	[middleware (first mw)]
+      (let [res (middleware env)]
+	(if-let [response (:response res)]
+	  (wrap-response response callbacks)
+	  (recur (:env res) (rest mw) (if-let [cb (:cb res)] (conj callbacks cb) callbacks ))))
+      (finalize-request env callbacks))))
 
 (defn generate-spore-method
   ([method_name spec]
@@ -28,8 +50,20 @@
     :as spec }]
      (fn
        [& {:as user-params}]
-       (let [missing (check-missing-params required user-params)]
+       (let [missing (check-missing-params required user-params)
+	     base (or base_url api_base_url)
+	     base_uri (URL. base)
+	     env {:METHOD_NAME method
+		  :SCRIPT_NAME (.getPath base_uri)
+		  :PATH_INFO path
+		  :REQUEST_URI ""
+		  :SERVER_HOST (.getHost base_uri)
+		  :SERVER_PORT (.getPort base_uri) 
+		  :QUERY_STRING ""
+		  :spore.payload (:payload user-params)
+		  :spore.params (dissoc user-params :payload)
+		  :spore.scheme (.getProtocol base_uri)}]
 	 (if-not (empty? missing)
 	   (Response. 599 {:error (str "missing params calling " method_name ": " (str-join ", " missing))})
-	   (println "gogogo!"))
-	 ))))
+	   (wrap-request env *middlewares*)
+	 )))))
