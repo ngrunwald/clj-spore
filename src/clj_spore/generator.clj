@@ -7,22 +7,22 @@
 
 (def *middlewares* [])
 
-(defn- check-missing-params
+(defn check-missing-params
   [required params]
   (let [str-params (map #(name %) (keys params) )]
      (filter #(not (.contains str-params %)) required)))
 
-(defn- wrap-response
+(defn wrap-response
   [response callbacks]
   response)
-
-(defn interpolate-params
-  [path params]
-  (reduce (fn [p [name val]] (str/replace-str (str name) (url-encode val) p)) path params))
 
 (defn url-encode
   [string]
   (URLEncoder/encode string "UTF-8"))
+
+(defn interpolate-params
+  [path params]
+  (reduce (fn [p [name val]] (str/replace-str (str name) (url-encode val) p)) path params))
 
 (defn make-query
   [params]
@@ -30,14 +30,14 @@
                       :let [str-name (if (keyword? key) (name key) (str key))]]
     (str (url-encode str-name) "=" (url-encode (str val))))))
 
-(defn finalize-request
+(defn- finalize-request
   [{ path :PATH_INFO, params :spore.params :as env}]
   (assoc env :PATH_INFO (interpolate-params path params)))
 
 (defn- send-request
-  [{ method :METHOD_NAME, host :SERVER_HOST, port :SERVER_PORT, path :PATH_INFO, params :spore.params, path-params :clj.spore.path-params :as env} callbacks]
+  [{ method :METHOD_NAME, host :SERVER_HOST, port :SERVER_PORT, scheme :spore.scheme, fixed-path :SCRIPT_NAME, path :PATH_INFO, params :spore.params, path-params :clj.spore.path-params :as env} callbacks]
   (let [query-params (apply (partial dissoc params) path-params)]
-    {:request-method method, :server-name host, :uri path, :query-string (make-query query-params)}
+    (c/request {:request-method method, :scheme scheme, :server-name host, :uri (str fixed-path path), :query-string (make-query query-params)})
     ))
 
 (defn- wrap-request
@@ -80,7 +80,7 @@
            nil
            ;; (Response. 599 {:error (str "missing params calling " method_name ": " (str/join ", " missing))})
            (let [base_uri (URL. base_url)
-                 env {:METHOD_NAME (keyword (str/lower-case (method)))
+                 env {:METHOD_NAME (keyword (str/lower-case method))
                       :SCRIPT_NAME (.getPath base_uri)
                       :PATH_INFO path
                       :REQUEST_URI ""
@@ -91,6 +91,5 @@
                       :spore.params (dissoc user-params :payload)
                       :spore.scheme (.getProtocol base_uri)
                       :clj.spore.path-params (into [] (map #(-> % second keyword) (re-seq #":([^/]+)" path)))}]
-             env
              (wrap-request env *middlewares*)
              ))))))
