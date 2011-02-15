@@ -18,7 +18,7 @@
   (let [api {:name "test" :author "NG" :version 0.1 :base_url "http://example.com/api" :format [:json]}
         method_name "test_method"
         m-spec {:method "GET" :path "/:foo/path" :params ["bar"] :required ["foo"] :expected 200}
-        func (generate-spore-method api method_name m-spec)]
+        func (generate-spore-method api m-spec method_name [])]
     (expect [clj-http.core/request (calls (fn [arg] arg))] 
             (testing "Mocked request"
               (is (function? func) "function generated")

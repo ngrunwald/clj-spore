@@ -3,10 +3,6 @@
             [clj-http.core :as c])
   (:import (java.net URL URLEncoder)))
 
-(def *api*)
-
-(def *middlewares* [])
-
 (defn check-missing-params
   [required params]
   (let [str-params (map #(name %) (keys params) )]
@@ -35,7 +31,7 @@
   (assoc env :PATH_INFO (interpolate-params path params)))
 
 (defn- send-request
-  [{ method :METHOD_NAME, host :SERVER_HOST, port :SERVER_PORT, scheme :spore.scheme, fixed-path :SCRIPT_NAME, path :PATH_INFO, params :spore.params, path-params :clj.spore.path-params :as env} callbacks]
+  [{ method :REQUEST_METHOD, host :SERVER_NAME, port :SERVER_PORT, scheme :spore.scheme, fixed-path :SCRIPT_NAME, path :PATH_INFO, params :spore.params, path-params :clj.spore.path-params :as env} callbacks]
   (let [query-params (apply (partial dissoc params) path-params)]
     (c/request {:request-method method, :scheme scheme, :server-name host, :uri (str fixed-path path), :query-string (make-query query-params)})
     ))
@@ -57,39 +53,42 @@
       )))
 
 (defn generate-spore-method
-  ([method_name spec]
-     (generate-spore-method *api* method_name spec))
   ([{:keys [name author version], api_base_url :base_url, api_format :format
      :or {api_format []}
      :as api}
-   method_name
    {:keys [method path params required expected description authentication base_url format documentation]
-    :or {description (str method_name " method")
+    :or {description (str method-name " method")
          authentication false
          base_url api_base_url
          format (or api_format [])
 	 params []
 	 required []
 	 expected []
-         documentation (str "no documentation for " method_name)}
-    :as spec }]
+         documentation (str "no documentation for " method-name)}
+    :as spec }
+   method-name
+   middlewares]
      (fn
+       ^{:doc documentation, :method-name method-name, :authentication authentication}
        [& {:as user-params}]
        (let [missing (check-missing-params required user-params)]
          (if-not (empty? missing)
            nil
            ;; (Response. 599 {:error (str "missing params calling " method_name ": " (str/join ", " missing))})
            (let [base_uri (URL. base_url)
-                 env {:METHOD_NAME (keyword (str/lower-case method))
+                 env {:REQUEST_METHOD (keyword (str/lower-case method))
                       :SCRIPT_NAME (.getPath base_uri)
                       :PATH_INFO path
                       :REQUEST_URI ""
-                      :SERVER_HOST (.getHost base_uri)
+                      :SERVER_NAME (.getHost base_uri)
                       :SERVER_PORT (.getPort base_uri) 
                       :QUERY_STRING ""
                       :spore.payload (:payload user-params)
                       :spore.params (dissoc user-params :payload)
                       :spore.scheme (.getProtocol base_uri)
-                      :clj.spore.path-params (into [] (map #(-> % second keyword) (re-seq #":([^/]+)" path)))}]
-             (wrap-request env *middlewares*)
+                      :spore.expected_status expected
+                      :clj.spore.authentication authentication
+                      :clj.spore.path-params (into [] (map #(-> % second keyword) (re-seq #":([^/]+)" path)))
+                      :clj.spore.method-name method-name}]
+                 (wrap-request env middlewares)
              ))))))
