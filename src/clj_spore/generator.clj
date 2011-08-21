@@ -16,11 +16,18 @@
 
 (defn interpolate-params
   [path params]
-  (reduce (fn [p [name val]] (str/replace-str (str name) (url-encode val) p)) path params))
+  (str/replace-re #"/:[^/]+" "" (reduce (fn [p [name val]] (str/replace-str (str name) (url-encode val) p)) path params)))
+
+(defn apply-middleware
+  [cli spec]
+  (if (fn? spec)
+    (spec cli)
+    (let [[mw & args] spec]
+      (apply mw cli args))))
 
 (defn wrap-middlewares
   [client & [middlewares]]
-  (reduce (fn [cli mw] (mw cli)) client middlewares))
+  (reduce (fn [cli mw] (apply-middleware cli mw)) client middlewares))
 
 (defn wrap-interpolate-path-params
   [client]
@@ -31,6 +38,23 @@
           uri (str script-name fixed-path)
           env* (assoc request :query-params query-params :uri uri :uri-string uri)]
       (client env*))))
+
+(defn wrap-trace
+  [client]
+  (fn [req]
+    (println req)
+    (client req)))
+
+(def base-client
+  (-> #'core/request
+      (wrap-trace)
+      (client/wrap-query-params)
+      (wrap-interpolate-path-params)
+      (client/wrap-redirects)
+      (client/wrap-output-coercion)
+      (client/wrap-input-coercion)
+      (client/wrap-content-type)
+      (client/wrap-accept)))
 
 (defn generate-spore-method
   ([{:keys [name author version], api_base_url :base_url, api_format :format
@@ -48,15 +72,7 @@
     :as spec}
    method-name
    middlewares]
-     (let [base-client (-> #'core/request
-                           (client/wrap-query-params)
-                           (wrap-interpolate-path-params)
-                           (client/wrap-redirects)
-                           (client/wrap-output-coercion)
-                           (client/wrap-input-coercion)
-                           (client/wrap-content-type)
-                           (client/wrap-accept))
-           wrapped-client (wrap-middlewares base-client middlewares)]
+     (let [wrapped-client (wrap-middlewares base-client middlewares)]
      (fn
        ^{:doc documentation, :method-name method-name, :authentication authentication}
        [& {:as user-params}]
@@ -65,31 +81,20 @@
            nil
            ;; (Response. 599 {:error (str "missing params calling " method_name ": " (str/join ", " missing))})
            (let [base_uri (URL. base_url)
+                 scheme (.getProtocol base_uri)
                  env {:request-method (keyword (str/lower-case method))
                       :script-name (.getPath base_uri)
                       :path-info path
                       :request-uri ""
                       :query-string ""
                       :server-name (.getHost base_uri)
-                      :server-port (.getPort base_uri) 
+                      :server-port (or (client/if-pos (.getPort base_uri)) (if (= scheme "https") 443 80))
                       :body (:payload user-params)
                       :params (dissoc user-params :payload)
-                      :scheme (.getProtocol base_uri)
-                      :spore.expected_status expected
+                      :scheme scheme
+                      :spore.expected-status expected
                       :clj.spore.authentication authentication
                       :clj.spore.path-params (into [] (map #(-> % second keyword) (re-seq #":([^/]+)" path)))
                       :clj.spore.method-name method-name
                       :clj.spore.format format}]
-                 (wrapped-client env))))))))
-
-(defn load-spec-from-json
-  [json]
-  (let
-      [spec (json/parse-string json true)
-       methods (:methods spec)
-       api-desc (dissoc spec :methods)]
-    (generate-spore-method api-desc (:askhn_posts methods) "askhn_posts" [])))
-
-(defn load-spec-from-file
-  [filepath]
-  (load-spec-from-json (slurp filepath)))
+             (wrapped-client env))))))))
