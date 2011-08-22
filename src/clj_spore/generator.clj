@@ -50,7 +50,6 @@
       (wrap-trace)
       (client/wrap-query-params)
       (wrap-interpolate-path-params)
-      (client/wrap-redirects)
       (client/wrap-output-coercion)
       (client/wrap-input-coercion)
       (client/wrap-content-type)
