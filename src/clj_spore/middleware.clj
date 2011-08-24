@@ -66,7 +66,7 @@
       (let [fmt-body (encoder body)
             req* (-> req (assoc :body fmt-body) (assoc-in [:headers "content-type"] type))]
         req*)
-      res)))
+      req)))
 
 (defn wrap-json-request
   "Handles serialization of payload params in JSON format. See wrap-format-request for details."
@@ -79,7 +79,7 @@
   "Handles serialization of payload params in Clojure format. See wrap-format-request for details."
   [client & {:keys [encoder type]
               :or {type "application/clojure"
-                   encoder prn-string}}]
+                   encoder prn-str}}]
   (wrap-format-response client :type type :encoder encoder))
 
 ;; All-in-one formats

@@ -75,6 +75,7 @@
      (fn
        ^{:doc documentation, :method-name method-name, :authentication authentication}
        [& {:as user-params}]
+       (println base_url)
        (let [missing (check-missing-params required user-params)]
          (if-not (empty? missing)
            nil
