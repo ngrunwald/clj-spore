@@ -1,0 +1,89 @@
+{
+   "base_url" : "http://api.ihackernews.com",
+   "version" : "0.02",
+   "methods" : {
+      "askhn_posts" : {
+         "optional_params" : [
+            "nextid"
+         ],
+         "expected_status" : [
+            "200"
+         ],
+         "path" : "/ask/:nextid",
+         "method" : "GET"
+      },
+      "vote" : {
+         "path" : "/vote",
+         "method" : "POST"
+      },
+      "auth_token" : {
+         "path" : "/login",
+         "method" : "POST"
+      },
+      "new_posts" : {
+         "optional_params" : [
+            "nextid"
+         ],
+         "expected_status" : [
+            "200"
+         ],
+         "path" : "/new/:nextid",
+         "method" : "GET"
+      },
+      "comment" : {
+         "path" : "/comment",
+         "method" : "POST"
+      },
+      "user_profile" : {
+         "required_params" : [
+            "userid"
+         ],
+         "expected_status" : [
+            "200"
+         ],
+         "path" : "/profile/:userid",
+         "method" : "GET"
+      },
+      "retrieve_page" : {
+         "optional_params" : [
+            "nextid"
+         ],
+         "expected_status" : [
+            "200"
+         ],
+         "path" : "/page/:nextid",
+         "method" : "GET"
+      },
+      "posts_from_user" : {
+         "required_params" : [
+            "username"
+         ],
+         "optional_params" : [
+            "nextid"
+         ],
+         "expected_status" : [
+            "200"
+         ],
+         "path" : "/by/:username/:nextid",
+         "method" : "GET"
+      },
+      "comments_for_post" : {
+         "required_params" : [
+            "id"
+         ],
+         "expected_status" : [
+            "200"
+         ],
+         "path" : "/comments/:id",
+         "method" : "GET"
+      }
+   },
+   "formats" : [
+      "json"
+   ],
+   "name" : "ihackernews",
+   "authority" : "GITHUB:franckcuny",
+   "meta" : {
+      "documentation" : "http://api.ihackernews.com/"
+   }
+}
