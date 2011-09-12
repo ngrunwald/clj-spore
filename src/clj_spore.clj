@@ -4,32 +4,26 @@
             [clj-spore.generator :as gen]
             [clj-spore.middleware :as mid]))
 
-(defn load-spec-from-json
-  [json & [mws]]
+(defn load-method
+  [desc spec name & {:keys [middlewares overload] :or {middlewares [] overload {}}}]
+  (let [merged-spec (merge spec overload)]
+    (gen/generate-spore-method desc spec name middlewares)))
+
+(defn load-spec
+  [spec & {:keys [middlewares overload] :or {middlewares [] overload {}}}]
   (let
-      [spec (json/parse-string json true)
-       methods (spec :methods)
+      [methods (spec :methods)
        api-desc (dissoc spec :methods)]
-    (reduce (fn [coll [m-name m-spec]] (assoc coll (name m-name) (gen/generate-spore-method api-desc m-spec m-name (or mws []))))
+    (reduce (fn [coll [m-name m-spec]] (assoc coll (keyword m-name) (load-method api-desc m-spec m-name :middlewares middlewares :overload overload)))
             {}
             methods)))
 
+(defn load-spec-from-json
+  [json & {:keys [middlewares overload] :or {middlewares [] overload {}}}]
+  (let
+      [spec (json/parse-string json true)]
+    (load-spec spec :middlewares middlewares :overload overload)))
+
 (defn load-spec-from-file
-  [filepath & [mws]]
-  (load-spec-from-json (slurp filepath) (or mws [])))
-
-(defn intern-spec
-  [spec ns-name]
-  (let [client-ns (create-ns ns-name)]
-    (doseq [[m-name method] spec]
-      (println m-name method)
-      (intern client-ns (symbol m-name) method))
-    client-ns))
-
-(defn create-client-from-file
-  ([filepath ns-name]
-     (create-client-from-file filepath ns-name []))
-  ([filepath ns-name mws]
-     (let [spec (load-spec-from-file filepath mws)]
-       (intern-spec spec ns-name))))
-
+  [filepath & {:keys [middlewares overload] :or {middlewares [] overload {}}}]
+  (load-spec-from-json (slurp filepath) :middlewares middlewares :overload overload))

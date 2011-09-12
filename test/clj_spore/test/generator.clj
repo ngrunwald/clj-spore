@@ -21,9 +21,9 @@
 (deftest gen-test
   (let [api {:name "test" :author "NG" :version 0.1 :base_url "http://example.com/api" :format [:json]}
         method_name "test_method"
-        m-spec-get {:method "GET" :path "/:foo/path" :params ["bar"] :required ["foo"] :expected [200]}
+        m-spec-get {:method "GET" :path "/:foo/path" :optional_params ["bar"] :required_params ["foo"] :expected_status [200]}
         func-get (generate-spore-method api m-spec-get (str method_name "_get") [])
-        m-spec-post {:method "POST" :path "/:foo/path" :params ["bar"] :required ["foo"] :expected [200]}
+        m-spec-post {:method "POST" :path "/:foo/path" :optional_params ["bar"] :required_params ["foo"] :expected_status [200]}
         func-post (generate-spore-method api m-spec-post (str method_name "_post") [])]
     (expect [clj-http.core/request (calls (fn [arg] (filter-keys arg #{:request-method :scheme :server-name :uri :query-string :body})))] 
             (testing "Mocked requests"
