@@ -13,7 +13,7 @@
   [spec & {:keys [middlewares overload] :or {middlewares [] overload {}}}]
   (let
       [methods (spec :methods)
-       api-desc (dissoc spec :methods)]
+       api-desc (merge (dissoc spec :methods) overload)]
     (reduce (fn [coll [m-name m-spec]] (assoc coll (keyword m-name) (load-method api-desc m-spec m-name :middlewares middlewares :overload overload)))
             {}
             methods)))

@@ -20,12 +20,13 @@
       (and (string? body) (not (empty? (re-find regexp type)))))))
 
 (defn wrap-format-response
-    "Wraps a client such that response body is deserialized from the right format and added in the :decoded-body key. It takes 2 args:
+    "Wraps a client such that response body is deserialized from the right format and added in the :decoded-body key. It takes 3 args:
 :predicate is a predicate taking the request and response as arguments to test if deserialization should be used.
-:decoder specifies a fn taking the body String as sole argument and giving back a hash-map."
-  [client & {:keys [predicate decoder]}]
+:decoder specifies a fn taking the body String as sole argument and giving back a hash-map.
+:type specifies the type for the MIME Accept header."
+  [client & {:keys [predicate decoder type]}]
   (fn [req]
-    (let [res (client req)]
+    (let [res (client (assoc-in req [:headers "accept"] type))]
       (if (predicate req res)
         (if-let [body (:body res)]
           (let [fmt-body (decoder body)
@@ -39,20 +40,22 @@
 
 (defn wrap-json-response
   "Handles body response in JSON format. See wrap-format-response for details."
-  [client & {:keys [predicate decoder]
+  [client & {:keys [predicate decoder type]
               :or {predicate json-response?
-                   decoder json/parse-string}}]
-  (wrap-format-response client :predicate predicate :decoder decoder))
+                   decoder json/parse-string
+                   type "application/json"}}]
+  (wrap-format-response client :predicate predicate :decoder decoder :type type))
 
 (def clojure-response?
   (make-type-response-pred #"^application/(vnd.+)?(x-)?clojure"))
 
 (defn wrap-clojure-response
   "Handles body response in Clojure format. See wrap-format-response for details."
-  [client & {:keys [predicate decoder]
+  [client & {:keys [predicate decoder type]
               :or {predicate clojure-response?
-                   decoder read-string}}]
-  (wrap-format-response client :predicate predicate :decoder decoder))
+                   decoder read-string
+                   type "application/clojure"}}]
+  (wrap-format-response client :predicate predicate :decoder decoder :type type))
 
 ;; Request format handling
 
@@ -65,15 +68,15 @@
     (if-let [body (:body req)]
       (let [fmt-body (encoder body)
             req* (-> req (assoc :body fmt-body) (assoc-in [:headers "content-type"] type))]
-        req*)
-      req)))
+        (client req*))
+      (client req))))
 
 (defn wrap-json-request
   "Handles serialization of payload params in JSON format. See wrap-format-request for details."
   [client & {:keys [encoder type]
               :or {type "application/json"
                    encoder json/generate-string}}]
-  (wrap-format-response client :type type :encoder encoder))
+  (wrap-format-request client :type type :encoder encoder))
 
 (defn wrap-clojure-request
   "Handles serialization of payload params in Clojure format. See wrap-format-request for details."
@@ -88,8 +91,8 @@
   "Handles serialization and deserialization of JSON."
   [client]
   (-> client
-      (wrap-json-request)
-      (wrap-json-response)))
+      (wrap-json-response)
+      (wrap-json-request)))
 
 (defn wrap-clojure-format
   "Handles serialization and deserialization of Clojure."
@@ -108,3 +111,10 @@
           res (client req)
           end (System/currentTimeMillis)]
       (assoc-in res [:headers "x-spore-runtime"] (- end start)))))
+
+(defn wrap-trace
+  [client]
+  (fn [req]
+    (println req)
+    (client req)))
+

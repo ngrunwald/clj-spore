@@ -40,12 +40,6 @@
           env* (assoc request :query-params query-params :uri uri :uri-string uri)]
       (client env*))))
 
-(defn wrap-trace
-  [client]
-  (fn [req]
-    (println req)
-    (client req)))
-
 (defn generate-query-string
   [params]
   (str/join "&"
@@ -66,7 +60,6 @@
 
 (def base-client
   (-> #'core/request
-;      (wrap-trace)
       (client/wrap-output-coercion)
       (client/wrap-input-coercion)
       (client/wrap-content-type)
@@ -90,7 +83,7 @@
     :as spec}
    method-name
    middlewares]
-     (let [wrapped-client (wrap-middlewares base-client middlewares)
+     (let [wrapped-client (wrap-middlewares base-client spec middlewares)
            req-params (set  required_params)
            expected (set expected_status)
            all-params (set (concat
