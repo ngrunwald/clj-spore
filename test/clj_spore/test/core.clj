@@ -5,11 +5,6 @@
         [clojure.contrib.with-ns]
         [clojure.contrib.mock.test-adapter]))
 
-(defn utf8-bytes
-  "Returns the UTF-8 bytes corresponding to the given string."
-  [#^String s]
-  (.getBytes s "UTF-8"))
-
 (deftest test-load-spec
   (let [client (load-spec-from-file "test/ihackernews.json")]
     (expect [clj-http.core/request (calls (fn [arg] {:status 200}))]
@@ -22,7 +17,7 @@
                   "request works")))))
 
 (deftest test-client-creation
-  (expect [clj-http.core/request (calls (fn [req] {:status 200 :body (:body req) :headers { "content-type" "application/json" } :request req}))]
+  (expect [clj-http.core/request (calls (fn [req] {:status 200 :body (:body req) :headers { "content-type" (get-in req [:headers "accept"]) } :request req}))]
           (testing "Simple middlewares"
             (let [client-simple (load-spec-from-file "test/ihackernews.json" :middlewares [wrap-json-format wrap-runtime])
                   res ((client-simple :vote) :payload {:bar "barbu"})]
@@ -34,4 +29,13 @@
             (let [client-overload (load-spec-from-file "test/ihackernews.json" :overload {:base_url "http://grunwald.fr"})
                   res ((client-overload :vote))]
               (is (= (:status res) 200) "request works")
-              (is (= (:server-name (:request res)) "grunwald.fr") "overloading works")))))))
+              (is (= (:server-name (:request res)) "grunwald.fr") "overloading works")))
+           (testing "Complex middleware"
+             (let [client-complex (load-spec-from-file "test/ihackernews.json" :middlewares [[wrap-clojure-response
+                                                                                              :enabled-if #(not= (:path %) "/login")
+                                                                                              :args [:type "application/x-clojure"]]])
+                   res-vote ((client-complex :vote))
+                   res-login ((client-complex :auth_token))]
+               (is (= (:status res-vote) 200) "request works")
+               (is (= (get-in (:request res-vote) [:headers "accept"]) "application/x-clojure"))
+               (is (not= (get-in (:request res-login) [:headers "accept"]) "application/x-clojure"))))))))
