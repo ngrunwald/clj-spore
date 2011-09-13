@@ -20,11 +20,15 @@
 
 (defn apply-middleware
   [cli m-spec spec]
+  "apply a middleware to a client. A mw can be either a fn or something like:
+ [wrap-clojure-request :enabled-if #(= (:path %)  \"/login\") :args [:type \"application/x-clojure\"]]
+ :enabled-if is a predicate fn taking the spore method spec as sole param"
   (if (fn? spec)
     (spec cli)
     (let [[mw & {:keys [enabled-if args] :or {enabled-if (fn [_] true) args []}}] spec]
       (if (enabled-if m-spec)
-        (apply mw cli args)))))
+        (apply mw cli args)
+        cli))))
 
 (defn wrap-middlewares
   [client m-spec & [middlewares]]
