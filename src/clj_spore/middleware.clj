@@ -83,7 +83,7 @@
   [client & {:keys [encoder type]
               :or {type "application/clojure"
                    encoder prn-str}}]
-  (wrap-format-response client :type type :encoder encoder))
+  (wrap-format-request client :type type :encoder encoder))
 
 ;; All-in-one formats
 
