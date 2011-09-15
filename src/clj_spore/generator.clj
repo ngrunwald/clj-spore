@@ -62,14 +62,20 @@
                              (generate-query-string (filter (fn [[k _]] (clj-spore-all-params k)) query-params)))))
       (client req))))
 
+(defn- summarize-string
+  [string]
+  (if (or (nil? string) (empty? string) (< (count string) 100 ))
+    string
+    (str (apply str (take 100 string)) " [...]")))
+
 (defn wrap-trace
   [client]
   (fn [req]
     (if (get (System/getenv) "SPORE_TRACE")
       (do
-        (println "REQUEST: " req)
+        (println "SPORE-REQUEST: " (assoc req :body (summarize-string (:body req))))
         (let [response (client req)]
-          (println "RESPONSE: " response)
+          (println "SPORE-RESPONSE: " (assoc response :body (summarize-string (:body response))))
           response))
       (client req))))
 
