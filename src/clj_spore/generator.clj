@@ -12,7 +12,7 @@
 
 (defn url-encode
   [string]
-  (URLEncoder/encode string "UTF-8"))
+  (URLEncoder/encode (str string) "UTF-8"))
 
 (defn interpolate-params
   [path params]
@@ -62,6 +62,17 @@
                              (generate-query-string (filter (fn [[k _]] (clj-spore-all-params k)) query-params)))))
       (client req))))
 
+(defn wrap-trace
+  [client]
+  (fn [req]
+    (if (get (System/getenv) "SPORE_TRACE")
+      (do
+        (println "REQUEST: " req)
+        (let [response (client req)]
+          (println "RESPONSE: " response)
+          response))
+      (client req))))
+
 (def base-client
   (-> #'core/request
       (client/wrap-output-coercion)
@@ -69,7 +80,8 @@
       (client/wrap-content-type)
       (client/wrap-accept)
       (wrap-allowed-query-params)
-      (wrap-interpolate-path-params)))
+      (wrap-interpolate-path-params)
+      (wrap-trace)))
 
 (defn generate-spore-method
   ([{:keys [name author version], api_base_url :base_url, api_format :format

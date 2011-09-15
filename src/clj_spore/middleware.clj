@@ -112,9 +112,4 @@
           end (System/currentTimeMillis)]
       (assoc-in res [:headers "x-spore-runtime"] (- end start)))))
 
-(defn wrap-trace
-  [client]
-  (fn [req]
-    (println req)
-    (client req)))
 
