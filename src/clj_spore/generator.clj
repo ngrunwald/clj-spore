@@ -116,8 +116,7 @@
        [& {:as user-params}]
        (let [missing (check-missing-params req-params user-params)]
          (if-not (empty? missing)
-           nil
-           ;; ({:status 599 :error (str "missing params calling " method_name ": " (str/join ", " missing))})
+           {:status 599 :error (str "missing params calling " method-name ": " (str/join ", " missing))}
            (let [base_uri (URL. base_url)
                  scheme (.getProtocol base_uri)
                  env {:request-method (keyword (str/lower-case method))
@@ -130,11 +129,11 @@
                       :body (:payload user-params)
                       :params (dissoc user-params :payload)
                       :scheme scheme
-                      :clj-spore-expected-status expected
+                      :clj-spore-expected-status (set expected)
                       :clj-spore-authentication authentication
                       :clj-spore-path-params (into [] (map #(-> % second keyword) (re-seq #":([^/]+)" path)))
                       :clj-spore-method-name method-name
-                      :clj-spore-format format
+                      :clj-spore-format (set format)
                       :clj-spore-required-params req-params
                       :clj-spore-all-params all-params
                       :clj-spore-required-payload required_payload}]
