@@ -1,6 +1,5 @@
 (ns clj-spore.middleware
-  (:require [clojure.contrib.string :as str]
-            [clj-json.core :as json]))
+  (:require [cheshire.core :as json]))
 
 (defn get-charset
   "Extracts charset from Content-Type header. utf-8 by default."

@@ -1,6 +1,6 @@
 (ns clj-spore.generator
-  (:require [clojure.contrib.string :as str]
-            [clj-json.core :as json]
+  (:use [slingshot.slingshot :only [throw+ try+]])
+  (:require [clojure.string :as str]
             [clj-http.core :as core]
             [clj-http.client :as client])
   (:import (java.net URL URLEncoder)))
@@ -16,7 +16,7 @@
 
 (defn interpolate-params
   [path params]
-  (str/replace-re #"/:[^/]+" "" (reduce (fn [p [name val]] (str/replace-str (str name) (url-encode val) p)) path params)))
+  (str/replace (reduce (fn [p [name val]] (str/replace p (str name) (url-encode val))) path params) #"/:[^/]+" ""))
 
 (defn apply-middleware
   [cli m-spec spec]
@@ -89,6 +89,12 @@
       (wrap-interpolate-path-params)
       (wrap-trace)))
 
+(defn parse-code
+  [code]
+  (if (string? code)
+    (Long/parseLong code)
+    code))
+
 (defn generate-spore-method
   ([{:keys [name author version], api_base_url :base_url, api_format :format
      :or {api_format []}
@@ -100,14 +106,15 @@
          format (or api_format [])
 	 optional_params []
 	 required_params []
-	 expected_status []
+	 expected_status [200]
          documentation (str "no documentation for " method-name)}
     :as spec}
    method-name
-   middlewares]
+   middlewares
+   {:keys [throw-exceptions] :or {throw-exceptions true} :as options}]
      (let [wrapped-client (wrap-middlewares base-client spec middlewares)
            req-params (set  required_params)
-           expected (set expected_status)
+           expected (set (map parse-code expected_status))
            all-params (set (concat
                             (map #(keyword %) optional_params)
                             (map #(keyword %) req-params)))]
@@ -129,12 +136,15 @@
                       :body (:payload user-params)
                       :params (dissoc user-params :payload)
                       :scheme scheme
-                      :clj-spore-expected-status (set expected)
+                      :clj-spore-expected-status expected
                       :clj-spore-authentication authentication
                       :clj-spore-path-params (into [] (map #(-> % second keyword) (re-seq #":([^/]+)" path)))
                       :clj-spore-method-name method-name
                       :clj-spore-format (set format)
                       :clj-spore-required-params req-params
                       :clj-spore-all-params all-params
-                      :clj-spore-required-payload required_payload}]
-             (wrapped-client env))))))))
+                      :clj-spore-required-payload required_payload}
+                 res (wrapped-client env)]
+             (if (and throw-exceptions (not (contains? expected (:status res))))
+               (throw+ {:response res :expected-status expected})
+               res))))))))
