@@ -92,8 +92,16 @@
 (defn parse-code
   [code]
   (if (string? code)
-    (Long/parseLong code)
-    code))
+    (Integer/parseInt code)
+    (int code)))
+
+(defn handle-error
+  [throw-exceptions obj]
+  (if throw-exceptions
+    (throw+ obj)
+    (if (map? obj)
+      (merge {:status 599} obj)
+      obj)))
 
 (defn generate-spore-method
   ([{:keys [name author version], api_base_url :base_url, api_format :format
@@ -106,7 +114,7 @@
          format (or api_format [])
 	 optional_params []
 	 required_params []
-	 expected_status [200]
+	 expected_status []
          documentation (str "no documentation for " method-name)}
     :as spec}
    method-name
@@ -115,6 +123,7 @@
      (let [wrapped-client (wrap-middlewares base-client spec middlewares)
            req-params (set  required_params)
            expected (set (map parse-code expected_status))
+           throw-on-unexpected? (not (empty? expected))
            all-params (set (concat
                             (map #(keyword %) optional_params)
                             (map #(keyword %) req-params)))]
@@ -123,7 +132,7 @@
        [& {:as user-params}]
        (let [missing (check-missing-params req-params user-params)]
          (if-not (empty? missing)
-           {:status 599 :error (str "missing params calling " method-name ": " (str/join ", " missing))}
+           (handle-error throw-exceptions {:type :missing-params :params user-params :missing-params missing :required-params req-params})
            (let [base_uri (URL. base_url)
                  scheme (.getProtocol base_uri)
                  env {:request-method (keyword (str/lower-case method))
@@ -145,6 +154,6 @@
                       :clj-spore-all-params all-params
                       :clj-spore-required-payload required_payload}
                  res (wrapped-client env)]
-             (if (and throw-exceptions (not (contains? expected (:status res))))
-               (throw+ {:response res :expected-status expected})
+             (if (and throw-on-unexpected? (not (contains? expected (int (:status res)))))
+               (handle-error throw-exceptions {:type :unexpected-status :method method-name :params user-params :env env :response res :expected-status expected})
                res))))))))
