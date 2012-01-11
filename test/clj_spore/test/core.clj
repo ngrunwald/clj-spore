@@ -1,5 +1,6 @@
 (ns clj-spore.test.core
   (:use [clj-spore] :reload)
+  (:use [slingshot.slingshot :only [throw+ try+]])
   (:use [clj-spore.middleware] :reload)
   (:use [clojure.test]
         [clojure.contrib.with-ns]
@@ -22,6 +23,7 @@
             (let [client-simple (load-spec-from-file "test/ihackernews.json" :middlewares [wrap-json-format wrap-runtime])
                   res ((client-simple :vote) :payload {:bar "barbu"})]
               (is (= (:status res) 200) "request works")
+              (is (= (:status res) 200) "request works")
               (is (and (get-in res [:headers "x-spore-runtime"])) "runtime middleware works")
               (is (= (get-in res [:headers "content-type"]) "application/json") "content-type response header is good")
               (is (= (get (:decoded-body res) "bar") "barbu") "decoded-body is good")
@@ -38,4 +40,12 @@
                    res-login ((client-complex :auth_token))]
                (is (= (:status res-vote) 200) "request works")
                (is (= (get-in (:request res-vote) [:headers "accept"]) "application/x-clojure"))
-               (is (not= (get-in (:request res-login) [:headers "accept"]) "application/x-clojure"))))))))
+               (is (not= (get-in (:request res-login) [:headers "accept"]) "application/x-clojure")))))))
+  (expect [clj-http.core/request (calls (fn [req]
+                                          {:status 205 :body (:body req)
+                                           :headers {"content-type" (get-in req [:headers "accept"])} :request req}))]
+          (testing "Exception handling"
+            (let [client-simple (load-spec-from-file "test/ihackernews.json")]
+              (try+ ((client-simple :askhn_posts))
+                    (catch Object o
+                      (is (= (:type o) :unexpected-status))))))))
