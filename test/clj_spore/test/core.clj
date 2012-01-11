@@ -48,4 +48,8 @@
             (let [client-simple (load-spec-from-file "test/ihackernews.json")]
               (try+ ((client-simple :askhn_posts))
                     (catch Object o
-                      (is (= (:type o) :unexpected-status))))))))
+                      (is (= (:type o) :unexpected-status))))
+              (try+ ((client-simple :user_profile))
+                    (catch Object o
+                      (is (= (:type o) :missing-params))
+                      (is (= (:missing-params o) '("userid")))))))))
