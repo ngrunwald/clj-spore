@@ -89,9 +89,9 @@
 
 (defn wrap-json-format
   "Handles serialization and deserialization of JSON."
-  [client & [keywordize?]]
+  [client & [keywordize]]
   (-> client
-      (wrap-json-response :keywordize keywordize?)
+      (wrap-json-response :keywordize keywordize)
       (wrap-json-request)))
 
 (defn wrap-clojure-format
