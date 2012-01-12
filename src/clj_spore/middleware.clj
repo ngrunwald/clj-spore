@@ -39,10 +39,11 @@
 
 (defn wrap-json-response
   "Handles body response in JSON format. See wrap-format-response for details."
-  [client & {:keys [predicate decoder type]
-              :or {predicate json-response?
-                   decoder json/parse-string
-                   type "application/json"}}]
+  [client & {:keys [predicate decoder type keywordize]
+             :or {keywordize false
+                  predicate json-response?
+                  decoder #(json/parse-string % keywordize)
+                  type "application/json"}}]
   (wrap-format-response client :predicate predicate :decoder decoder :type type))
 
 (def clojure-response?
@@ -88,9 +89,9 @@
 
 (defn wrap-json-format
   "Handles serialization and deserialization of JSON."
-  [client]
+  [client & [keywordize?]]
   (-> client
-      (wrap-json-response)
+      (wrap-json-response :keywordize keywordize?)
       (wrap-json-request)))
 
 (defn wrap-clojure-format
