@@ -103,6 +103,10 @@
       (merge {:status 599} obj)
       obj)))
 
+(defn if-pos
+  [v]
+  (if (and v (pos? v)) v))
+
 (defn generate-spore-method
   ([{:keys [name author version], api_base_url :base_url, api_format :format
      :or {api_format []}
@@ -141,7 +145,7 @@
                       :request-uri ""
                       :query-string ""
                       :server-name (.getHost base_uri)
-                      :server-port (or (client/if-pos (.getPort base_uri)) (if (= scheme "https") 443 80))
+                      :server-port (or (if-pos (.getPort base_uri)) (if (= scheme "https") 443 80))
                       :body (:payload user-params)
                       :params (dissoc user-params :payload)
                       :scheme scheme
