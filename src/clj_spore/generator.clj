@@ -7,8 +7,8 @@
 
 (defn check-missing-params
   [required params]
-  (let [str-params (map #(name %) (keys params) )]
-    (filter #(not (.contains str-params %)) required)))
+  (let [str-params (into #{} (map name (keys params)))]
+    (remove str-params required)))
 
 (defn url-encode
   [string]
@@ -133,7 +133,7 @@
                             (map #(keyword %) req-params)))]
      (fn
        ^{:doc documentation, :method-name method-name, :authentication authentication}
-       [& {:as user-params}]
+       [& {:keys [payload] :as user-params}]
        (let [missing (check-missing-params req-params user-params)]
          (if-not (empty? missing)
            (handle-error throw-exceptions {:type :missing-params :params user-params :missing-params missing :required-params req-params})
@@ -146,7 +146,7 @@
                       :query-string ""
                       :server-name (.getHost base_uri)
                       :server-port (or (if-pos (.getPort base_uri)) (if (= scheme "https") 443 80))
-                      :body (:payload user-params)
+                      :body payload
                       :params (dissoc user-params :payload)
                       :scheme scheme
                       :clj-spore-expected-status expected
