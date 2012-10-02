@@ -1,4 +1,4 @@
-(defproject clj-spore "0.0.2"
+(defproject clj-spore "0.1.0-SNAPSHOT"
   :description "SPORE client implementation for the Clojure language"
   :dependencies [[org.clojure/clojure "1.4.0"]
                  [cheshire "4.0.3"]
