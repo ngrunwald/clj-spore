@@ -79,6 +79,24 @@
           response))
       (client req))))
 
+(defn parse-integer
+  [str]
+  (try (Long/parseLong str)
+       (catch Exception _
+         (let [c (class str)]
+           (cond (= c java.lang.Long) str
+                 (= c java.lang.Integer) str
+                 :else 0)))))
+
+(defn wrap-timeout
+  [client]
+  (fn [{:keys [params] :as req}]
+    (let [timeout (parse-integer (:timeout params))]
+          (client (if (> timeout 0)
+                    (merge req {:socket-timeout timeout
+                                :conn-timeout timeout})
+                    req)))))
+
 (def base-client
   (-> #'core/request
       (client/wrap-output-coercion)
@@ -87,7 +105,8 @@
       (client/wrap-accept)
       (wrap-allowed-query-params)
       (wrap-interpolate-path-params)
-      (wrap-trace)))
+      (wrap-trace)
+      (wrap-timeout)))
 
 (defn parse-code
   [code]
